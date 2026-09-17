@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>愷威學習樂園 - 互動學習遊戲</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      touch-action: none;
+      user-select: none;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Quicksand, '微軟正黑體', sans-serif;
+      background-color: #F0F9FF;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .page {
+      display: none;
+      width: 100%;
+      height: 100vh;
+      flex-direction: column;
+      align-items: center;
+    }
+    .page.active {
+      display: flex;
+    }
+
+    /* 主選單 */
+    #main-menu {
+      justify-content: center;
+      padding: 20px;
+    }
+    .menu-title {
+      font-size: 36px;
+      color: #0284C7;
+      margin-bottom: 30px;
+      text-shadow: 2px 2px 0px #BAE6FD;
+      text-align: center;
+    }
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      width: 100%;
+      max-width: 800px;
+    }
+    @media (max-width: 600px) {
+      .menu-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .icon-card {
+      background: white;
+      border-radius: 24px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+      cursor: pointer;
+      border: 4px solid #E2E8F0;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .icon-card:active { transform: scale(0.95); }
+    .icon-card.available { border-color: #38BDF8; background: #F0F9FF; }
+    .icon-card.locked { opacity: 0.6; cursor: not-allowed; border-style: dashed; }
+    .icon-symbol { font-size: 56px; margin-bottom: 10px; }
+    .icon-label { font-size: 18px; font-weight: bold; color: #334155; text-align: center; }
+
+    /* 遊戲畫面 */
+    header {
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+    }
+    .btn-back {
+      padding: 10px 20px;
+      font-size: 18px;
+      font-weight: bold;
+      background-color: #0284C7;
+      color: white;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .level-title { font-size: 20px; font-weight: bold; color: #475569; }
+
+    #game-container {
+      width: 100%;
+      max-width: 800px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .targets-area, .draggables-area {
+      display: flex;
+      justify-content: center;
+      gap: 25px;
+      width: 100%;
+      min-height: 200px;
+    }
+
+    /* 形狀配對樣式 */
+    .shape-box {
+      width: 130px;
+      height: 130px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+    .shape-circle { border-radius: 50% !important; }
+    .shape-square { border-radius: 20px; }
+    .shape-triangle { clip-path: polygon(50% 0%, 0% 100%, 100% 100%); }
+    .shape-star { clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
+    .shape-heart { clip-path: path('M 65,25 C 65,10 45,0 32,15 C 20,0 0,10 0,25 C 0,45 32,65 32,65 C 32,65 65,45 65,25 Z'); transform: scale(2); }
+    .shape-oval { border-radius: 50% / 35%; }
+
+    /* 物品與水果基礎樣式 (加大圖案) */
+    .item-box {
+      width: 180px;
+      height: 180px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      border-radius: 28px;
+      font-size: 90px;
+    }
+
+    .item-box img, .item-box svg {
+      width: 95px;
+      height: 95px;
+      object-fit: contain;
+      pointer-events: none;
+    }
+
+    /* 顏色卡通野餐籃樣式 (Icon 3 專用) */
+    .basket-box {
+      width: 190px;
+      height: 190px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    .basket-svg-wrapper {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+    }
+
+    .basket-content {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin-top: 15px;
+      pointer-events: none;
+    }
+
+    .basket-badge {
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 20px;
+      padding: 4px 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .basket-badge-icon { font-size: 28px; }
+    .basket-badge-title { font-size: 18px; font-weight: bold; }
+
+    .target {
+      opacity: 0.95;
+    }
+    
+    .draggable {
+      cursor: grab;
+      z-index: 10;
+      background-color: #FFFFFF;
+      box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.15);
+      border: 4px solid #E2E8F0;
+    }
+    .draggable.matched {
+      pointer-events: none;
+      box-shadow: none;
+      border: none;
+    }
+
+    .item-desc {
+      font-size: 20px;
+      font-weight: bold;
+      color: #334155;
+      margin-top: 4px;
+      pointer-events: none;
+    }
+
+    /* 彈窗 */
+    #success-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255, 255, 255, 0.92);
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+    #success-modal h2 { font-size: 36px; color: #16A34A; margin-bottom: 10px; }
+    #success-modal p { font-size: 22px; color: #475569; margin-bottom: 20px; text-align: center; padding: 0 20px; line-height: 1.6; }
+    .btn-next {
+      padding: 15px 40px;
+      font-size: 24px;
+      background-color: #22C55E;
+      color: white;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 1. 主選單頁面 -->
+  <div id="main-menu" class="page active">
+    <div class="menu-title">🎈 愷威學習樂園 🎈</div>
+    <div class="menu-grid">
+      <!-- Icon 1: 顏色形狀配對 -->
+      <div class="icon-card available" onclick="startGame('shape_match')">
+        <div class="icon-symbol">🎨</div>
+        <div class="icon-label">顏色形狀配對</div>
+      </div>
+
+      <!-- Icon 2: 物品認知配對 -->
+      <div class="icon-card available" onclick="startGame('item_match')">
+        <div class="icon-symbol">🪥</div>
+        <div class="icon-label">生活用品認知</div>
+      </div>
+
+      <!-- Icon 3: 水果顏色分類籃 -->
+      <div class="icon-card available" onclick="startGame('fruit_match')">
+        <div class="icon-symbol">🧺</div>
+        <div class="icon-label">水果顏色籃</div>
+      </div>
+
+      <!-- Icon 4~6 預留 -->
+      <div class="icon-card locked" onclick="showLockedAlert()"><div class="icon-symbol">🔒</div><div class="icon-label">預留區 4</div></div>
+      <div class="icon-card locked" onclick="showLockedAlert()"><div class="icon-symbol">🔒</div><div class="icon-label">預留區 5</div></div>
+      <div class="icon-card locked" onclick="showLockedAlert()"><div class="icon-symbol">🔒</div><div class="icon-label">預留區 6</div></div>
+    </div>
+  </div>
+
+  <!-- 2. 遊戲頁面 -->
+  <div id="game-view" class="page">
+    <header>
+      <button class="btn-back" onclick="showMainMenu()">🏠 回選單</button>
+      <div class="level-title" id="level-title">關卡資訊</div>
+    </header>
+
+    <div id="game-container">
+      <div class="draggables-area" id="draggables-area"></div>
+      <div class="targets-area" id="targets-area"></div>
+    </div>
+  </div>
+
+  <!-- 成功彈窗 -->
+  <div id="success-modal">
+    <h2>🎉 太棒了！答對了！</h2>
+    <p id="modal-desc"></p>
+    <button class="btn-next" onclick="nextLevel()">下一關 ➔</button>
+  </div>
+
+  <script>
+    let currentGameType = '';
+    let currentLevelIndex = 0;
+    let matchedCount = 0;
+    let activeLevels = [];
+
+    // 高解析度藍色卡通掛毛巾 SVG
+    const towelSvgIcon = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <rect x="25" y="12" width="50" height="8" rx="4" fill="#94A3B8"/>
+      <path d="M 30 20 L 70 20 L 75 88 C 75 92 70 95 65 95 L 35 95 C 30 95 25 92 25 88 Z" fill="#38BDF8"/>
+      <path d="M 26 75 C 33 70 41 80 50 75 C 59 70 67 80 74 75 L 75 88 C 75 92 70 95 65 95 L 35 95 C 30 95 25 92 25 88 Z" fill="#0284C7"/>
+      <line x1="30" y1="83" x2="70" y2="83" stroke="#FFFFFF" stroke-width="3" stroke-dasharray="4,4"/>
+    </svg>`;
+
+    // 動態生成彩色卡通野餐籃 SVG
+    function createBasketSvg(mainColor, borderColor) {
+      return `<svg viewBox="0 0 200 180" class="basket-svg-wrapper" xmlns="http://www.w3.org/2000/svg">
+        <!-- 籃子提把 -->
+        <path d="M 50 80 C 50 20, 150 20, 150 80" fill="none" stroke="${borderColor}" stroke-width="12" stroke-linecap="round"/>
+        <path d="M 50 80 C 50 20, 150 20, 150 80" fill="none" stroke="${mainColor}" stroke-width="6" stroke-linecap="round"/>
+        
+        <!-- 籃子主體 -->
+        <path d="M 25 70 L 175 70 C 185 70 190 78 185 90 L 165 160 C 160 172 150 178 135 178 L 65 178 C 50 178 40 172 35 160 L 15 90 C 10 78 15 70 25 70 Z" fill="${mainColor}" stroke="${borderColor}" stroke-width="6" stroke-linejoin="round"/>
+        
+        <!-- 編織質感線條 -->
+        <path d="M 20 100 L 180 100 M 25 130 L 175 130" stroke="${borderColor}" stroke-width="4" stroke-dasharray="10,8" opacity="0.4"/>
+        <path d="M 60 70 L 45 178 M 100 70 L 100 178 M 140 70 L 155 178" stroke="${borderColor}" stroke-width="4" opacity="0.3"/>
+        
+        <!-- 籃口邊緣折角 -->
+        <rect x="20" y="62" width="160" height="14" rx="7" fill="${borderColor}"/>
+      </svg>`;
+    }
+
+    // ==========================================
+    // 1. 顏色形狀關卡資料
+    // ==========================================
+    const shapeLevels = [
+      {
+        title: "第一關：圓形與正方形",
+        items: [
+          { id: "red_circle", type: "shape", shape: "circle", color: "#EF4444", name: "紅色圓形" },
+          { id: "blue_square", type: "shape", shape: "square", color: "#3B82F6", name: "藍色正方形" }
+        ]
+      },
+      {
+        title: "第二關：三角形與黃色圓形",
+        items: [
+          { id: "green_triangle", type: "shape", shape: "triangle", color: "#22C55E", name: "綠色三角形" },
+          { id: "yellow_circle", type: "shape", shape: "circle", color: "#EAB308", name: "黃色圓形" }
+        ]
+      },
+      {
+        title: "第三關：星星與愛心",
+        items: [
+          { id: "orange_star", type: "shape", shape: "star", color: "#F97316", name: "橘色星星" },
+          { id: "pink_heart", type: "shape", shape: "heart", color: "#EC4899", name: "粉色愛心" }
+        ]
+      },
+      {
+        title: "第四關：橢圓形與紫色正方形",
+        items: [
+          { id: "cyan_oval", type: "shape", shape: "oval", color: "#06B6D4", name: "青色橢圓形" },
+          { id: "purple_square", type: "shape", shape: "square", color: "#A855F7", name: "紫色正方形" }
+        ]
+      }
+    ];
+
+    // ==========================================
+    // 2. 生活用品 15 組關卡資料
+    // ==========================================
+    const itemLevels = [
+      { title: "第 1 關：刷牙與擦臉", items: [{ id: "toothbrush", type: "item", icon: "🪥", name: "牙刷", desc: "刷刷牙，牙齒好乾淨！" }, { id: "towel", type: "item", icon: towelSvgIcon, name: "毛巾", desc: "洗洗臉，毛巾擦乾淨！" }] },
+      { title: "第 2 關：喝水與戴帽", items: [{ id: "cup", type: "item", icon: "🥛", name: "水杯", desc: "多喝水，身體好健康！" }, { id: "hat", type: "item", icon: "🧢", name: "帽子", desc: "戴帽子，遮太陽真棒！" }] },
+      { title: "第 3 關：吃飯與穿鞋", items: [{ id: "spoon", type: "item", icon: "🥄", name: "湯匙", desc: "用湯匙，自己乖乖吃飯！" }, { id: "shoes", type: "item", icon: "👟", name: "鞋子", desc: "穿上鞋子，一起出門玩！" }] },
+      { title: "第 4 關：保暖與洗手", items: [{ id: "socks", type: "item", icon: "🧦", name: "襪子", desc: "穿上小襪子，腳腳不冰冷！" }, { id: "soap", type: "item", icon: "🧼", name: "肥皂", desc: "肥皂搓搓手，病菌全跑光！" }] },
+      { title: "第 5 關：梳頭與剪紙", items: [{ id: "comb", type: "item", icon: "🪮", name: "梳子", desc: "梳梳頭髮，整齊漂亮！" }, { id: "scissors", type: "item", icon: "✂️", name: "剪刀", desc: "安全剪刀，手作好幫手！" }] },
+      { title: "第 6 關：上學與下雨", items: [{ id: "bag", type: "item", icon: "🎒", name: "書包", desc: "背上小書包，開心去上學！" }, { id: "umbrella", type: "item", icon: "☂️", name: "雨傘", desc: "下雨開大傘，衣服不會濕！" }] },
+      { title: "第 7 關：穿衣與穿褲", items: [{ id: "clothes", type: "item", icon: "👕", name: "衣服", desc: "穿上漂亮衣服，好精神！" }, { id: "pants", type: "item", icon: "👖", name: "褲子", desc: "拉起褲子，自己棒棒的！" }] },
+      { title: "第 8 關：起床與睡覺", items: [{ id: "clock", type: "item", icon: "⏰", name: "鬧鐘", desc: "鬧鐘叮叮噹，早起不遲到！" }, { id: "bed", type: "item", icon: "🛏️", name: "床舖", desc: "躺在小床上，做個好夢！" }] },
+      { title: "第 9 關：開門與照亮", items: [{ id: "key", type: "item", icon: "🔑", name: "鑰匙", desc: "轉轉小鑰匙，安全鎖好門！" }, { id: "flashlight", type: "item", icon: "🔦", name: "手電筒", desc: "亮亮手電筒，照亮小黑夜！" }] },
+      { title: "第 10 關：酷炫與通話", items: [{ id: "sunglasses", type: "item", icon: "🕶️", name: "墨鏡", desc: "戴上太陽眼鏡，帥氣又遮陽！" }, { id: "phone", type: "item", icon: "📱", name: "手機", desc: "打電話給爸爸媽媽，報平安！" }] },
+      { title: "第 11 關：吃飯與夾菜", items: [{ id: "bowl", type: "item", icon: "🥣", name: "飯碗", desc: "用小飯碗，飯飯吃光光！" }, { id: "chopsticks", type: "item", icon: "🥢", name: "筷子", desc: "拿好小筷子，夾菜真厲害！" }] },
+      { title: "第 12 關：照鏡與剪指甲", items: [{ id: "mirror", type: "item", icon: "🪞", name: "鏡子", desc: "照照小鏡子，笑一笑真可愛！" }, { id: "nail_clipper", type: "item", icon: "💅", name: "指甲油", desc: "修修小指甲，乾乾淨淨！" }] },
+      { title: "第 13 關：喝水與便當", items: [{ id: "water_bottle", type: "item", icon: "🍼", name: "奶瓶", desc: "帶上小奶瓶/水壺，補充水分！" }, { id: "bento", type: "item", icon: "🍱", name: "餐盒", desc: "打開小餐盒，美味午餐開動！" }] },
+      { title: "第 14 關：掃地與垃圾", items: [{ id: "broom", type: "item", icon: "🧹", name: "掃把", desc: "拿小掃把，環境掃乾淨！" }, { id: "trash_can", type: "item", icon: "🗑️", name: "垃圾桶", desc: "垃圾丟桶裡，真是好乖乖！" }] },
+      { title: "第 15 關：坐椅子與休息", items: [{ id: "chair", type: "item", icon: "🪑", name: "椅子", desc: "坐好小椅子，看書姿勢棒！" }, { id: "sofa", type: "item", icon: "🛋️", name: "沙發", desc: "坐在大沙發，跟家人一起休息！" }] }
+    ];
+
+    // ==========================================
+    // 3. 水果大全 15 組 (野餐籃 + 貼紙標誌)
+    // ==========================================
+    const fruitLevels = [
+      {
+        title: "第 1 關：紅水果與黃水果",
+        baskets: [
+          { colorId: "red", name: "紅色籃", icon: "🍎", fill: "#FCA5A5", border: "#EF4444" },
+          { colorId: "yellow", name: "黃色籃", icon: "🍌", fill: "#FDE047", border: "#EAB308" }
+        ],
+        items: [
+          { id: "apple", colorId: "red", type: "fruit", icon: "🍎", name: "蘋果", desc: "紅蘋果甜甜的，多吃好健康！" },
+          { id: "banana", colorId: "yellow", type: "fruit", icon: "🍌", name: "香蕉", desc: "黃香蕉像月亮，香甜可口！" }
+        ]
+      },
+      {
+        title: "第 2 關：紫水果與紅水果",
+        baskets: [
+          { colorId: "purple", name: "紫色籃", icon: "🍇", fill: "#D8B4FE", border: "#A855F7" },
+          { colorId: "red", name: "紅色籃", icon: "🍓", fill: "#FCA5A5", border: "#EF4444" }
+        ],
+        items: [
+          { id: "grape", colorId: "purple", type: "fruit", icon: "🍇", name: "葡萄", desc: "紫葡萄一串串，多汁好美味！" },
+          { id: "strawberry", colorId: "red", type: "fruit", icon: "🍓", name: "草莓", desc: "紅草莓酸酸甜甜，大家都喜歡！" }
+        ]
+      },
+      {
+        title: "第 3 關：綠水果與橘水果",
+        baskets: [
+          { colorId: "green", name: "綠色籃", icon: "🍉", fill: "#86EFAC", border: "#22C55E" },
+          { colorId: "orange", name: "橘色籃", icon: "🍊", fill: "#FDBA74", border: "#F97316" }
+        ],
+        items: [
+          { id: "watermelon", colorId: "green", type: "fruit", icon: "🍉", name: "西瓜", desc: "綠皮大西瓜，消暑最清涼！" },
+          { id: "tangerine", colorId: "orange", type: "fruit", icon: "🍊", name: "橘子", desc: "圓圓大橘子，剝皮酸甜好滋味！" }
+        ]
+      },
+      {
+        title: "第 4 關：黃水果與黃綠水果",
+        baskets: [
+          { colorId: "yellow", name: "黃色籃", icon: "🍍", fill: "#FDE047", border: "#EAB308" },
+          { colorId: "yellowgreen", name: "黃綠籃", icon: "🍋", fill: "#BEF264", border: "#84CC16" }
+        ],
+        items: [
+          { id: "pineapple", colorId: "yellow", type: "fruit", icon: "🍍", name: "鳳梨", desc: "黃鳳梨戴帽子，香味撲鼻來！" },
+          { id: "lemon", colorId: "yellowgreen", type: "fruit", icon: "🍋", name: "檸檬", desc: "酸酸檸檬維他命C超豐富！" }
+        ]
+      },
+      {
+        title: "第 5 關：粉水果與紅水果",
+        baskets: [
+          { colorId: "pink", name: "粉色籃", icon: "🍑", fill: "#F9A8D4", border: "#EC4899" },
+          { colorId: "red", name: "紅色籃", icon: "🍒", fill: "#FCA5A5", border: "#EF4444" }
+        ],
+        items: [
+          { id: "peach", colorId: "pink", type: "fruit", icon: "🍑", name: "水蜜桃", desc: "粉紅水蜜桃，柔軟又多汁！" },
+          { id: "cherry", colorId: "red", type: "fruit", icon: "🍒", name: "櫻桃", desc: "小巧紅櫻桃，一對對好可愛！" }
+        ]
+      },
+      {
+        title: "第 6 關：棕綠水果與綠水果",
+        baskets: [
+          { colorId: "brown", name: "棕色籃", icon: "🥝", fill: "#FCD34D", border: "#D97706" },
+          { colorId: "green", name: "綠色籃", icon: "🍈", fill: "#86EFAC", border: "#22C55E" }
+        ],
+        items: [
+          { id: "kiwi", colorId: "brown", type: "fruit", icon: "🥝", name: "奇異果", desc: "毛毛奇異果，裡面綠心又好吃！" },
+          { id: "guava", colorId: "green", type: "fruit", icon: "🍈", name: "芭樂", desc: "綠色芭樂脆脆的，豐富纖維讚！" }
+        ]
+      },
+      {
+        title: "第 7 關：橘黃水果與黃水果",
+        baskets: [
+          { colorId: "orange", name: "橘色籃", icon: "🥭", fill: "#FDBA74", border: "#F97316" },
+          { colorId: "yellow", name: "黃色籃", icon: "🥭", fill: "#FDE047", border: "#EAB308" }
+        ],
+        items: [
+          { id: "papaya", colorId: "orange", type: "fruit", icon: "🥭", name: "木瓜", desc: "橘色木瓜甜又軟，照顧小肚子！" },
+          { id: "mango", colorId: "yellow", type: "fruit", icon: "🥭", name: "芒果", desc: "夏天的黃芒果，冰涼好消暑！" }
+        ]
+      },
+      {
+        title: "第 8 關：深綠水果與黃綠水果",
+        baskets: [
+          { colorId: "darkgreen", name: "深綠籃", icon: "🥑", fill: "#6EE7B7", border: "#059669" },
+          { colorId: "yellowgreen", name: "黃綠籃", icon: "🍈", fill: "#BEF264", border: "#84CC16" }
+        ],
+        items: [
+          { id: "avocado", colorId: "darkgreen", type: "fruit", icon: "🥑", name: "酪梨", desc: "綠色酪梨營養高，好喝好健康！" },
+          { id: "cantaloupe", colorId: "yellowgreen", type: "fruit", icon: "🍈", name: "哈密瓜", desc: "哈密瓜網紋多，水分滿滿滿！" }
+        ]
+      },
+      {
+        title: "第 9 關：藍紫水果與棕水果",
+        baskets: [
+          { colorId: "bluepurple", name: "藍紫籃", icon: "🫐", fill: "#A5B4FC", border: "#6366F1" },
+          { colorId: "brown", name: "棕色籃", icon: "🥥", fill: "#FCD34D", border: "#D97706" }
+        ],
+        items: [
+          { id: "blueberry", colorId: "bluepurple", type: "fruit", icon: "🫐", name: "藍莓", desc: "小藍莓亮晶晶，保護眼睛讚！" },
+          { id: "coconut", colorId: "brown", type: "fruit", icon: "🥥", name: "椰子", desc: "棕色椰子硬又大，椰子水好清涼！" }
+        ]
+      },
+      {
+        title: "第 10 關：桃紅水果與橘水果",
+        baskets: [
+          { colorId: "pinkred", name: "桃紅籃", icon: "🦩", fill: "#F472B6", border: "#DB2777" },
+          { colorId: "orange", name: "橘色籃", icon: "🍊", fill: "#FDBA74", border: "#F97316" }
+        ],
+        items: [
+          { id: "dragonfruit", colorId: "pinkred", type: "fruit", icon: "🦩", name: "火龍果", desc: "火龍果紅通通，多吃排便順！" },
+          { id: "persimmon", colorId: "orange", type: "fruit", icon: "🍊", name: "柿子", desc: "秋天橘柿子，甜甜好美味！" }
+        ]
+      },
+      {
+        title: "第 11 關：綠水果與紅綠水果",
+        baskets: [
+          { colorId: "green", name: "綠色籃", icon: "🍐", fill: "#86EFAC", border: "#22C55E" },
+          { colorId: "redgreen", name: "紅綠籃", icon: "🍎", fill: "#FCA5A5", border: "#EF4444" }
+        ],
+        items: [
+          { id: "pomelo", colorId: "green", type: "fruit", icon: "🍐", name: "柚子", desc: "中秋柚子香又甜，還能戴帽子！" },
+          { id: "waxapple", colorId: "redgreen", type: "fruit", icon: "🍎", name: "蓮霧", desc: "台灣紅蓮霧，清脆多汁爽口！" }
+        ]
+      },
+      {
+        title: "第 12 關：暗紅水果與棕紅水果",
+        baskets: [
+          { colorId: "darkred", name: "暗紅籃", icon: "🍒", fill: "#FB7185", border: "#E11D48" },
+          { colorId: "brownred", name: "棕紅籃", icon: "🌰", fill: "#FB923C", border: "#C2410C" }
+        ],
+        items: [
+          { id: "lychee", colorId: "darkred", type: "fruit", icon: "🍒", name: "荔枝", desc: "紅荔枝殼粗粗，果肉白白甜！" },
+          { id: "longan", colorId: "brownred", type: "fruit", icon: "🌰", name: "龍眼", desc: "龍眼果肉多，圓圓古靈精怪！" }
+        ]
+      },
+      {
+        title: "第 13 關：紫綠水果與黃黃水果",
+        baskets: [
+          { colorId: "purplegreen", name: "紫綠籃", icon: "🫒", fill: "#C084FC", border: "#9333EA" },
+          { colorId: "yellow", name: "黃色籃", icon: "⭐", fill: "#FDE047", border: "#EAB308" }
+        ],
+        items: [
+          { id: "fig", colorId: "purplegreen", type: "fruit", icon: "🫒", name: "無花果", desc: "無花果軟軟甜甜，營養價值高！" },
+          { id: "starfruit", colorId: "yellow", type: "fruit", icon: "⭐", name: "楊桃", desc: "切開黃楊桃，像是一顆顆星星！" }
+        ]
+      },
+      {
+        title: "第 14 關：綠紫水果與暗紫水果",
+        baskets: [
+          { colorId: "greenpurple", name: "綠紫籃", icon: "🟣", fill: "#C084FC", border: "#7E22CE" },
+          { colorId: "darkpurple", name: "深紫籃", icon: "🫐", fill: "#DDD6FE", border: "#6D28D9" }
+        ],
+        items: [
+          { id: "passionfruit", colorId: "greenpurple", type: "fruit", icon: "🟣", name: "百香果", desc: "百香果酸甜香氣，泡水好好喝！" },
+          { id: "mangosteen", colorId: "darkpurple", type: "fruit", icon: "🫐", name: "山竹", desc: "山竹水果后，白嫩果肉甜融化！" }
+        ]
+      },
+      {
+        title: "第 15 關：綠竹水果與棕堅果",
+        baskets: [
+          { colorId: "green", name: "綠色籃", icon: "🎋", fill: "#86EFAC", border: "#22C55E" },
+          { colorId: "brown", name: "棕色籃", icon: "🌰", fill: "#FCD34D", border: "#D97706" }
+        ],
+        items: [
+          { id: "sugarcane", colorId: "green", type: "fruit", icon: "🎋", name: "甘蔗", desc: "甘蔗長長啃啃嚼，甜甜汁水多！" },
+          { id: "chestnut", colorId: "brown", type: "fruit", icon: "🌰", name: "栗子", desc: "糖炒栗子香又甜，溫暖好滋味！" }
+        ]
+      }
+    ];
+
+    // 音效系統
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playSound(type) {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain); gain.connect(audioCtx.destination);
+
+      if (type === 'success') {
+        osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(659.25, audioCtx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+      } else if (type === 'win') {
+        [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+          const o = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          o.connect(g); g.connect(audioCtx.destination);
+          o.frequency.value = freq;
+          g.gain.setValueAtTime(0.2, audioCtx.currentTime + idx * 0.1);
+          g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + idx * 0.1 + 0.4);
+          o.start(audioCtx.currentTime + idx * 0.1);
+          o.stop(audioCtx.currentTime + idx * 0.1 + 0.4);
+        });
+      }
+    }
+
+    // 頁面切換
+    function showMainMenu() {
+      document.getElementById('game-view').classList.remove('active');
+      document.getElementById('main-menu').classList.add('active');
+      document.getElementById('success-modal').style.display = 'none';
+    }
+
+    function startGame(type) {
+      currentGameType = type;
+      if (type === 'shape_match') activeLevels = shapeLevels;
+      else if (type === 'item_match') activeLevels = itemLevels;
+      else activeLevels = fruitLevels;
+      
+      currentLevelIndex = 0;
+
+      document.getElementById('main-menu').classList.remove('active');
+      document.getElementById('game-view').classList.add('active');
+      loadLevel(currentLevelIndex);
+    }
+
+    function showLockedAlert() {
+      alert("這個遊戲還在準備中喔！");
+    }
+
+    // 載入關卡
+    function loadLevel(index) {
+      const level = activeLevels[index];
+      document.getElementById('level-title').innerText = `${level.title} (${index + 1}/${activeLevels.length})`;
+      document.getElementById('success-modal').style.display = 'none';
+      matchedCount = 0;
+
+      const targetsArea = document.getElementById('targets-area');
+      const draggablesArea = document.getElementById('draggables-area');
+      targetsArea.innerHTML = '';
+      draggablesArea.innerHTML = '';
+
+      const shuffledItems = [...level.items].sort(() => Math.random() - 0.5);
+
+      if (currentGameType === 'fruit_match') {
+        // Icon 3 卡通野餐籃介面
+        level.baskets.forEach(b => {
+          const basket = document.createElement('div');
+          basket.className = 'basket-box target';
+          basket.dataset.color = b.colorId;
+
+          // 注入籃子 SVG 與籃身貼紙
+          basket.innerHTML = `
+            ${createBasketSvg(b.fill, b.border)}
+            <div class="basket-content">
+              <div class="basket-badge">
+                <span class="basket-badge-icon">${b.icon}</span>
+                <span class="basket-badge-title" style="color: ${b.border}">${b.name}</span>
+              </div>
+            </div>
+          `;
+          targetsArea.appendChild(basket);
+        });
+
+        shuffledItems.forEach(item => {
+          const el = document.createElement('div');
+          el.dataset.color = item.colorId;
+          el.className = `item-box draggable`;
+          el.innerHTML = `${item.icon}<div class="item-desc">${item.name}</div>`;
+          makeDraggable(el);
+          draggablesArea.appendChild(el);
+        });
+
+      } else {
+        // Icon 1 & 2 標準介面
+        level.items.forEach(item => {
+          const target = document.createElement('div');
+          target.dataset.id = item.id;
+
+          if (item.type === 'shape') {
+            target.className = `shape-box target shape-${item.shape}`;
+          } else {
+            target.className = `item-box target`;
+            target.innerHTML = `${item.icon}<div class="item-desc">${item.name}</div>`;
+          }
+          targetsArea.appendChild(target);
+        });
+
+        shuffledItems.forEach(item => {
+          const el = document.createElement('div');
+          el.dataset.id = item.id;
+
+          if (item.type === 'shape') {
+            el.className = `shape-box draggable shape-${item.shape}`;
+            el.style.backgroundColor = item.color;
+          } else {
+            el.className = `item-box draggable`;
+            el.innerHTML = `${item.icon}<div class="item-desc">${item.name}</div>`;
+          }
+
+          makeDraggable(el);
+          draggablesArea.appendChild(el);
+        });
+      }
+    }
+
+    // 拖曳邏輯
+    function makeDraggable(element) {
+      let startX = 0, startY = 0;
+      let initialLeft = 0, initialTop = 0;
+
+      element.addEventListener('pointerdown', onPointerDown);
+
+      function onPointerDown(e) {
+        element.setPointerCapture(e.pointerId);
+        const rect = element.getBoundingClientRect();
+        startX = e.clientX; startY = e.clientY;
+        initialLeft = rect.left; initialTop = rect.top;
+
+        element.style.position = 'fixed';
+        element.style.left = `${initialLeft}px`;
+        element.style.top = `${initialTop}px`;
+        element.style.zIndex = 1000;
+
+        element.addEventListener('pointermove', onPointerMove);
+        element.addEventListener('pointerup', onPointerUp);
+      }
+
+      function onPointerMove(e) {
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        element.style.left = `${initialLeft + dx}px`;
+        element.style.top = `${initialTop + dy}px`;
+      }
+
+      function onPointerUp(e) {
+        element.releasePointerCapture(e.pointerId);
+        element.removeEventListener('pointermove', onPointerMove);
+        element.removeEventListener('pointerup', onPointerUp);
+
+        const targets = document.querySelectorAll('.target');
+        let matched = false;
+
+        targets.forEach(target => {
+          const isMatch = (currentGameType === 'fruit_match') 
+            ? (target.dataset.color === element.dataset.color) 
+            : (target.dataset.id === element.dataset.id);
+
+          if (isMatch) {
+            const tRect = target.getBoundingClientRect();
+            const eRect = element.getBoundingClientRect();
+
+            const distX = Math.abs((eRect.left + eRect.width / 2) - (tRect.left + tRect.width / 2));
+            const distY = Math.abs((eRect.top + eRect.height / 2) - (tRect.top + tRect.height / 2));
+
+            if (distX < 95 && distY < 95) {
+              matched = true;
+              element.style.position = 'absolute';
+              element.style.left = '0px';
+              element.style.top = '0px';
+              element.classList.add('matched');
+              
+              if (currentGameType !== 'fruit_match') {
+                target.innerHTML = ''; 
+              }
+              target.appendChild(element);
+
+              playSound('success');
+              matchedCount++;
+
+              if (matchedCount === activeLevels[currentLevelIndex].items.length) {
+                setTimeout(() => {
+                  playSound('win');
+                  const modalDesc = document.getElementById('modal-desc');
+                  const descriptions = activeLevels[currentLevelIndex].items.map(i => i.desc || i.name).join('<br>');
+                  modalDesc.innerHTML = descriptions;
+                  document.getElementById('success-modal').style.display = 'flex';
+                }, 500);
+              }
+            }
+          }
+        });
+
+        if (!matched) {
+          element.style.transition = 'all 0.3s ease';
+          element.style.left = `${initialLeft}px`;
+          element.style.top = `${initialTop}px`;
+
+          setTimeout(() => {
+            element.style.transition = 'none';
+            element.style.position = 'relative';
+            element.style.left = '0px';
+            element.style.top = '0px';
+            element.style.zIndex = 10;
+          }, 300);
+        }
+      }
+    }
+
+    function nextLevel() {
+      currentLevelIndex = (currentLevelIndex + 1) % activeLevels.length;
+      loadLevel(currentLevelIndex);
+    }
+  </script>
+</body>
+</html>
