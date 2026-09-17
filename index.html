@@ -116,23 +116,23 @@
       min-height: 200px;
     }
 
-    /* 形狀配對樣式 */
-    .shape-box {
-      width: 130px;
-      height: 130px;
+    /* 遊戲一：形狀容器尺寸放大 */
+    .shape-container {
+      width: 180px;  /* 從 140px 放大至 180px */
+      height: 180px; /* 從 140px 放大至 180px */
       display: flex;
       justify-content: center;
       align-items: center;
       position: relative;
     }
-    .shape-circle { border-radius: 50% !important; }
-    .shape-square { border-radius: 20px; }
-    .shape-triangle { clip-path: polygon(50% 0%, 0% 100%, 100% 100%); }
-    .shape-star { clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
-    .shape-heart { clip-path: path('M 65,25 C 65,10 45,0 32,15 C 20,0 0,10 0,25 C 0,45 32,65 32,65 C 32,65 65,45 65,25 Z'); transform: scale(2); }
-    .shape-oval { border-radius: 50% / 35%; }
 
-    /* 物品與水果基礎樣式 (加大圖案) */
+    .shape-svg {
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    /* 物品與水果基礎樣式 */
     .item-box {
       width: 180px;
       height: 180px;
@@ -152,7 +152,7 @@
       pointer-events: none;
     }
 
-    /* 顏色卡通野餐籃樣式 (Icon 3 專用) */
+    /* 野餐籃樣式 */
     .basket-box {
       width: 190px;
       height: 190px;
@@ -205,7 +205,15 @@
       background-color: #FFFFFF;
       box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.15);
       border: 4px solid #E2E8F0;
+      border-radius: 24px;
     }
+    
+    .draggable.shape-draggable {
+      background-color: transparent;
+      box-shadow: none;
+      border: none;
+    }
+
     .draggable.matched {
       pointer-events: none;
       box-shadow: none;
@@ -251,25 +259,21 @@
   <div id="main-menu" class="page active">
     <div class="menu-title">🎈 愷威學習樂園 🎈</div>
     <div class="menu-grid">
-      <!-- Icon 1: 顏色形狀配對 -->
       <div class="icon-card available" onclick="startGame('shape_match')">
         <div class="icon-symbol">🎨</div>
         <div class="icon-label">顏色形狀配對</div>
       </div>
 
-      <!-- Icon 2: 物品認知配對 -->
       <div class="icon-card available" onclick="startGame('item_match')">
         <div class="icon-symbol">🪥</div>
         <div class="icon-label">生活用品認知</div>
       </div>
 
-      <!-- Icon 3: 水果顏色分類籃 -->
       <div class="icon-card available" onclick="startGame('fruit_match')">
         <div class="icon-symbol">🧺</div>
         <div class="icon-label">水果顏色籃</div>
       </div>
 
-      <!-- Icon 4~6 預留 -->
       <div class="icon-card locked" onclick="showLockedAlert()"><div class="icon-symbol">🔒</div><div class="icon-label">預留區 4</div></div>
       <div class="icon-card locked" onclick="showLockedAlert()"><div class="icon-symbol">🔒</div><div class="icon-label">預留區 5</div></div>
       <div class="icon-card locked" onclick="showLockedAlert()"><div class="icon-symbol">🔒</div><div class="icon-label">預留區 6</div></div>
@@ -310,28 +314,48 @@
       <line x1="30" y1="83" x2="70" y2="83" stroke="#FFFFFF" stroke-width="3" stroke-dasharray="4,4"/>
     </svg>`;
 
+    // 動態生成形狀 SVG
+    function createShapeSvg(shape, color, isTarget = false) {
+      const strokeProps = isTarget ? 'stroke="#94A3B8" stroke-width="6" stroke-dasharray="8,8" fill="#E2E8F0" fill-opacity="0.4"' : `fill="${color}"`;
+      let pathHTML = '';
+
+      switch (shape) {
+        case 'circle':
+          pathHTML = `<circle cx="50" cy="50" r="42" ${strokeProps} />`;
+          break;
+        case 'square':
+          pathHTML = `<rect x="10" y="10" width="80" height="80" rx="16" ${strokeProps} />`;
+          break;
+        case 'triangle':
+          pathHTML = `<polygon points="50,8 92,88 8,88" stroke-linejoin="round" stroke-width="6" ${strokeProps} />`;
+          break;
+        case 'star':
+          pathHTML = `<polygon points="50,5 63,35 95,38 71,60 78,92 50,75 22,92 29,60 5,38 37,35" stroke-linejoin="round" stroke-width="4" ${strokeProps} />`;
+          break;
+        case 'heart':
+          pathHTML = `<path d="M 50 88 C 20 65, 5 45, 5 28 C 5 12, 20 5, 35 5 C 43 5, 48 10, 50 15 C 52 10, 57 5, 65 5 C 80 5, 95 12, 95 28 C 95 45, 80 65, 50 88 Z" ${strokeProps} />`;
+          break;
+        case 'oval':
+          pathHTML = `<ellipse cx="50" cy="50" rx="45" ry="30" ${strokeProps} />`;
+          break;
+      }
+
+      return `<svg viewBox="0 0 100 100" class="shape-svg" xmlns="http://www.w3.org/2000/svg">${pathHTML}</svg>`;
+    }
+
     // 動態生成彩色卡通野餐籃 SVG
     function createBasketSvg(mainColor, borderColor) {
       return `<svg viewBox="0 0 200 180" class="basket-svg-wrapper" xmlns="http://www.w3.org/2000/svg">
-        <!-- 籃子提把 -->
         <path d="M 50 80 C 50 20, 150 20, 150 80" fill="none" stroke="${borderColor}" stroke-width="12" stroke-linecap="round"/>
         <path d="M 50 80 C 50 20, 150 20, 150 80" fill="none" stroke="${mainColor}" stroke-width="6" stroke-linecap="round"/>
-        
-        <!-- 籃子主體 -->
         <path d="M 25 70 L 175 70 C 185 70 190 78 185 90 L 165 160 C 160 172 150 178 135 178 L 65 178 C 50 178 40 172 35 160 L 15 90 C 10 78 15 70 25 70 Z" fill="${mainColor}" stroke="${borderColor}" stroke-width="6" stroke-linejoin="round"/>
-        
-        <!-- 編織質感線條 -->
         <path d="M 20 100 L 180 100 M 25 130 L 175 130" stroke="${borderColor}" stroke-width="4" stroke-dasharray="10,8" opacity="0.4"/>
         <path d="M 60 70 L 45 178 M 100 70 L 100 178 M 140 70 L 155 178" stroke="${borderColor}" stroke-width="4" opacity="0.3"/>
-        
-        <!-- 籃口邊緣折角 -->
         <rect x="20" y="62" width="160" height="14" rx="7" fill="${borderColor}"/>
       </svg>`;
     }
 
-    // ==========================================
     // 1. 顏色形狀關卡資料
-    // ==========================================
     const shapeLevels = [
       {
         title: "第一關：圓形與正方形",
@@ -363,9 +387,7 @@
       }
     ];
 
-    // ==========================================
-    // 2. 生活用品 15 組關卡資料
-    // ==========================================
+    // 2. 生活用品關卡資料
     const itemLevels = [
       { title: "第 1 關：刷牙與擦臉", items: [{ id: "toothbrush", type: "item", icon: "🪥", name: "牙刷", desc: "刷刷牙，牙齒好乾淨！" }, { id: "towel", type: "item", icon: towelSvgIcon, name: "毛巾", desc: "洗洗臉，毛巾擦乾淨！" }] },
       { title: "第 2 關：喝水與戴帽", items: [{ id: "cup", type: "item", icon: "🥛", name: "水杯", desc: "多喝水，身體好健康！" }, { id: "hat", type: "item", icon: "🧢", name: "帽子", desc: "戴帽子，遮太陽真棒！" }] },
@@ -384,9 +406,7 @@
       { title: "第 15 關：坐椅子與休息", items: [{ id: "chair", type: "item", icon: "🪑", name: "椅子", desc: "坐好小椅子，看書姿勢棒！" }, { id: "sofa", type: "item", icon: "🛋️", name: "沙發", desc: "坐在大沙發，跟家人一起休息！" }] }
     ];
 
-    // ==========================================
-    // 3. 水果大全 15 組 (野餐籃 + 貼紙標誌)
-    // ==========================================
+    // 3. 水果關卡資料
     const fruitLevels = [
       {
         title: "第 1 關：紅水果與黃水果",
@@ -622,13 +642,10 @@
       const shuffledItems = [...level.items].sort(() => Math.random() - 0.5);
 
       if (currentGameType === 'fruit_match') {
-        // Icon 3 卡通野餐籃介面
         level.baskets.forEach(b => {
           const basket = document.createElement('div');
           basket.className = 'basket-box target';
           basket.dataset.color = b.colorId;
-
-          // 注入籃子 SVG 與籃身貼紙
           basket.innerHTML = `
             ${createBasketSvg(b.fill, b.border)}
             <div class="basket-content">
@@ -651,13 +668,13 @@
         });
 
       } else {
-        // Icon 1 & 2 標準介面
         level.items.forEach(item => {
           const target = document.createElement('div');
           target.dataset.id = item.id;
 
           if (item.type === 'shape') {
-            target.className = `shape-box target shape-${item.shape}`;
+            target.className = `shape-container target`;
+            target.innerHTML = createShapeSvg(item.shape, item.color, true);
           } else {
             target.className = `item-box target`;
             target.innerHTML = `${item.icon}<div class="item-desc">${item.name}</div>`;
@@ -670,8 +687,8 @@
           el.dataset.id = item.id;
 
           if (item.type === 'shape') {
-            el.className = `shape-box draggable shape-${item.shape}`;
-            el.style.backgroundColor = item.color;
+            el.className = `shape-container draggable shape-draggable`;
+            el.innerHTML = createShapeSvg(item.shape, item.color, false);
           } else {
             el.className = `item-box draggable`;
             el.innerHTML = `${item.icon}<div class="item-desc">${item.name}</div>`;
